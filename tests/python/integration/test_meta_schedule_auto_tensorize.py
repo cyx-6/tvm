@@ -19,7 +19,6 @@ import tempfile
 
 import numpy as np
 import pytest
-
 import tvm
 import tvm.testing
 import tvm.topi.testing
