@@ -40,7 +40,7 @@ String GenerateUniqueName(std::string name_hint, std::unordered_set<String>* def
 
 IdDoc IRDocsifierNode::Define(const ObjectRef& obj, const Frame& frame, const String& name_hint) {
   String name = GenerateUniqueName(name_hint, &this->defined_names);
-  DocFactory doc_factory = [name]() { return IdDoc(name); };
+  DocCreator doc_factory = [name]() { return IdDoc(name); };
   auto result = obj2info.insert({obj, VariableInfo{std::move(doc_factory), name}});
   ICHECK(result.second) << "Duplicated object: " << obj;
   IdDoc def_doc(name);
@@ -48,7 +48,7 @@ IdDoc IRDocsifierNode::Define(const ObjectRef& obj, const Frame& frame, const St
   return def_doc;
 }
 
-void IRDocsifierNode::Define(const ObjectRef& obj, const Frame& frame, DocFactory doc_factory) {
+void IRDocsifierNode::Define(const ObjectRef& obj, const Frame& frame, DocCreator doc_factory) {
   ICHECK(obj2info.find(obj) == obj2info.end()) << "Duplicated object: " << obj;
   ICHECK(!doc_factory()->IsInstance<IdDocNode>())
       << "IRDocsifierNode::Define cannot be used for variable that's mapped to IdDoc.";
@@ -61,7 +61,7 @@ Optional<ExprDoc> IRDocsifierNode::GetVarDoc(const ObjectRef& obj) const {
   if (it == obj2info.end()) {
     return NullOpt;
   }
-  return it->second.doc_factory();
+  return it->second.creator();
 }
 
 bool IRDocsifierNode::IsVarDefined(const ObjectRef& obj) const { return obj2info.count(obj); }
@@ -73,6 +73,77 @@ void IRDocsifierNode::RemoveVar(const ObjectRef& obj) {
     defined_names.erase(it->second.name.value());
   }
   obj2info.erase(it);
+}
+
+void IRDocsifierNode::SetCommonPrefix(const ObjectRef& root,
+                                      runtime::TypedPackedFunc<bool(ObjectRef)> is_var) {
+  class Visitor : public AttrVisitor {
+   public:
+    inline void operator()(ObjectRef obj) { Visit("", &obj); }
+
+   private:
+    void Visit(const char* key, double* value) final {}
+    void Visit(const char* key, int64_t* value) final {}
+    void Visit(const char* key, uint64_t* value) final {}
+    void Visit(const char* key, int* value) final {}
+    void Visit(const char* key, bool* value) final {}
+    void Visit(const char* key, std::string* value) final {}
+    void Visit(const char* key, void** value) final {}
+    void Visit(const char* key, DataType* value) final {}
+    void Visit(const char* key, runtime::NDArray* value) final {}
+    void Visit(const char* key, ObjectRef* value) final {
+      const Object* obj = value->get();
+      if (obj == nullptr) {
+        return;
+      }
+      stack_.push_back(obj);
+      if (obj->IsInstance<ArrayNode>()) {
+        const ArrayNode* array = static_cast<const ArrayNode*>(obj);
+        for (ObjectRef element : *array) {
+          this->Visit("", &element);
+        }
+      } else if (obj->IsInstance<MapNode>()) {
+        const MapNode* map = static_cast<const MapNode*>(obj);
+        for (std::pair<ObjectRef, ObjectRef> kv : *map) {
+          this->Visit("", &kv.first);
+          this->Visit("", &kv.second);
+        }
+      } else {
+        vtable_->VisitAttrs(const_cast<Object*>(obj), this);
+      }
+      if (is_var(GetRef<ObjectRef>(obj))) {
+        HandleVar(obj);
+      }
+      stack_.pop_back();
+    }
+
+    void HandleVar(const Object* var) {
+      if (common_prefix.count(var) == 0) {
+        common_prefix[var] = stack_;
+        return;
+      }
+      std::vector<const Object*>& a = common_prefix[var];
+      std::vector<const Object*>& b = stack_;
+      int n = std::min(a.size(), b.size());
+      for (int i = 0; i < n; ++i) {
+        if (a[i] != b[i]) {
+          a.resize(i);
+          break;
+        }
+      }
+    }
+
+    ReflectionVTable* vtable_ = ReflectionVTable::Global();
+    std::vector<const Object*> stack_;
+
+   public:
+    runtime::TypedPackedFunc<bool(ObjectRef)> is_var;
+    std::unordered_map<const Object*, std::vector<const Object*>> common_prefix;
+  };
+  Visitor visitor;
+  visitor.is_var = is_var;
+  visitor(root);
+  this->common_prefix = std::move(visitor.common_prefix);
 }
 
 IRDocsifier::IRDocsifier(Map<String, String> ir_prefix) {
@@ -88,36 +159,7 @@ IRDocsifier::FType& IRDocsifier::vtable() {
 }
 
 TVM_REGISTER_NODE_TYPE(FrameNode);
-TVM_REGISTER_GLOBAL("script.printer.FrameAddExitCallback")
-    .set_body_typed([](Frame frame, runtime::TypedPackedFunc<void()> callback) {
-      frame->AddExitCallback(callback);
-    });
-TVM_REGISTER_GLOBAL("script.printer.FrameEnterWithScope")
-    .set_body_method<Frame>(&FrameNode::EnterWithScope);
-TVM_REGISTER_GLOBAL("script.printer.FrameExitWithScope")
-    .set_body_method<Frame>(&FrameNode::ExitWithScope);
 TVM_REGISTER_NODE_TYPE(IRDocsifierNode);
-TVM_REGISTER_GLOBAL("script.printer.IRDocsifier").set_body_typed([](Map<String, String> ir_prefix) {
-  return IRDocsifier(ir_prefix);
-});
-TVM_REGISTER_GLOBAL("script.printer.IRDocsifierPushDispatchToken")
-    .set_body_typed([](IRDocsifier p, String token) { p->dispatch_tokens.push_back(token); });
-TVM_REGISTER_GLOBAL("script.printer.IRDocsifierPopDispatchToken").set_body_typed([](IRDocsifier p) {
-  p->dispatch_tokens.pop_back();
-});
-TVM_REGISTER_GLOBAL("script.printer.IRDocsifierPushFrame")
-    .set_body_typed([](IRDocsifier p, Frame frame) { p->frames.push_back(frame); });
-TVM_REGISTER_GLOBAL("script.printer.IRDocsifierPopFrame").set_body_typed([](IRDocsifier p) {
-  p->frames.pop_back();
-});
-TVM_REGISTER_GLOBAL("script.printer.IRDocsifierSetDispatch")
-    .set_body_typed([](String token, uint64_t type_index, runtime::PackedFunc f) {
-      IRDocsifier::vtable().set_dispatch(token, type_index, std::move(f));
-    });
-TVM_REGISTER_GLOBAL("script.printer.IRDocsifierRemoveDispatch")
-    .set_body_typed([](String token, uint64_t type_index) {
-      IRDocsifier::vtable().remove_dispatch(token, type_index);
-    });
 
 }  // namespace printer
 }  // namespace script

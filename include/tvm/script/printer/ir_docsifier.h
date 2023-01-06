@@ -18,6 +18,7 @@
  */
 #ifndef TVM_SCRIPT_PRINTER_IR_DOCSIFIER_H_
 #define TVM_SCRIPT_PRINTER_IR_DOCSIFIER_H_
+
 #include <tvm/ir/module.h>
 #include <tvm/node/node.h>
 #include <tvm/script/printer/doc.h>
@@ -43,8 +44,23 @@ class IRDocsifierNode;
  */
 class FrameNode : public Object {
  public:
-  void VisitAttrs(tvm::AttrVisitor* v) { v->Visit("stmts", &stmts); }
+  /*! The docs generated in the frame */
+  Array<StmtDoc> stmts;
+  /*! The corresponding IRDocsifier */
+  IRDocsifierNode* d;
+  /*! The callbacks that are going to be invoked when the frame exits */
+  std::vector<std::function<void()>> callbacks;
 
+  void VisitAttrs(tvm::AttrVisitor* v) {
+    v->Visit("stmts", &stmts);
+    // `d` is not visited
+    // `callbacks` is not visited
+  }
+
+  static constexpr const char* _type_key = "script.printer.Frame";
+  TVM_DECLARE_BASE_OBJECT_INFO(FrameNode, Object);
+
+ public:
   virtual ~FrameNode() = default;
 
   /*!
@@ -53,9 +69,14 @@ class FrameNode : public Object {
    */
   template <typename TCallback>
   void AddExitCallback(TCallback&& cb) {
-    callbacks_.emplace_back(std::forward<TCallback>(cb));
+    callbacks.emplace_back(std::forward<TCallback>(cb));
   }
-
+  /*!
+   * \brief Add a dispatch token to the docsifier, and a callback that pops the token when this
+   * frame exits.
+   * \param d The docsifier.
+   * \param token The token to be added.
+   */
   void AddDispatchToken(const IRDocsifier& d, const String& token);
   /*!
    * \brief Method that's called when Frame enters the scope.
@@ -65,16 +86,6 @@ class FrameNode : public Object {
    * \brief Method that's called when Frame exits the scope.
    */
   virtual void ExitWithScope();
-
-  static constexpr const char* _type_key = "script.printer.Frame";
-  TVM_DECLARE_BASE_OBJECT_INFO(FrameNode, Object);
-
- public:
-  Array<StmtDoc> stmts;
-  IRDocsifierNode* d;
-
- private:
-  std::vector<std::function<void()>> callbacks_;
 };
 
 /*!
@@ -86,11 +97,13 @@ class Frame : public ObjectRef {
 
  public:
   virtual ~Frame() = default;
+
   /*! \brief Method that's called when Frame enters the scope. */
   void EnterWithScope() { get()->EnterWithScope(); }
 
   /*! \brief Method that's called when Frame exits the scope. */
   void ExitWithScope() { get()->ExitWithScope(); }
+
   TVM_DEFINE_MUTABLE_NOTNULLABLE_OBJECT_REF_METHODS(Frame, ObjectRef, FrameNode);
 };
 
@@ -104,12 +117,19 @@ class Frame : public ObjectRef {
  */
 class IRDocsifierNode : public Object {
  public:
-  using DocFactory = std::function<ExprDoc()>;
-
+  /*! \brief A function that creates the doc for a variable */
+  using DocCreator = std::function<ExprDoc()>;
+  /*! \brief Information about a variable, including its optional name and its doc creator */
   struct VariableInfo {
-    DocFactory doc_factory;
+    /*! \brief The creator */
+    DocCreator creator;
+    /*! \brief The name of the variable */
     Optional<String> name;
   };
+  /*!
+   * \brief This map connects IR dispatch token to the name of identifier.
+   */
+  Map<String, String> ir_prefix;
   /*!
    * \brief The stack of frames.
    * \sa FrameNode
@@ -122,24 +142,23 @@ class IRDocsifierNode : public Object {
    * when converting IR node object to Doc.
    */
   Array<String> dispatch_tokens;
-  /*!
-   * \brief This map connects IR dispatch token to the name of identifier.
-   */
-  Map<String, String> ir_prefix;
-
+  /*! \brief The IRModule to be docsifier is handling */
   Optional<IRModule> mod;
-
+  /*! \brief Mapping from a var to its info */
   std::unordered_map<ObjectRef, VariableInfo, ObjectPtrHash, ObjectPtrEqual> obj2info;
-
+  /*! \brief The variable names used already */
   std::unordered_set<String> defined_names;
+  /*! \brief Common prefixes of variable usages */
+  std::unordered_map<const Object*, std::vector<const Object*>> common_prefix;
 
   void VisitAttrs(tvm::AttrVisitor* v) {
+    v->Visit("ir_prefix", &ir_prefix);
     v->Visit("frames", &frames);
     v->Visit("dispatch_tokens", &dispatch_tokens);
-    v->Visit("ir_prefix", &ir_prefix);
     v->Visit("mod", &mod);
     // `obj2info` is not visited
     // `defined_names` is not visited
+    // `common_prefix` is not visited
   }
 
   static constexpr const char* _type_key = "script.printer.IRDocsifier";
@@ -175,7 +194,7 @@ class IRDocsifierNode : public Object {
    * so VarTable needs to call a factory function to get a freshly-constructed Doc object
    * every time GetVarDoc is called.
    */
-  void Define(const ObjectRef& obj, const Frame& frame, DocFactory doc_factory);
+  void Define(const ObjectRef& obj, const Frame& frame, DocCreator doc_factory);
 
   /*!
    * \brief Get the doc for variable.
@@ -192,9 +211,14 @@ class IRDocsifierNode : public Object {
    * \return a boolean for whether variable exists.
    */
   bool IsVarDefined(const ObjectRef& obj) const;
-
+  /*! \brief Remove the variable defined */
   void RemoveVar(const ObjectRef& obj);
-
+  /*!
+   * \brief Set the common prefix information of variable usage.
+   * \param root The root of the AST.
+   * \param is_var A function that returns true if the given object is considered a variable.
+   */
+  void SetCommonPrefix(const ObjectRef& root, runtime::TypedPackedFunc<bool(ObjectRef)> is_var);
   /*!
    * \brief Transform the input object into TDoc.
    * \param obj The object to be transformed.
@@ -211,16 +235,13 @@ class IRDocsifierNode : public Object {
  */
 class IRDocsifier : public ObjectRef {
  public:
+  using FType = IRDocsifierFunctor<printer::Doc, ObjectPath, IRDocsifier>;
   /*!
    * \brief Create a IRDocsifier.
    * \param ir_prefix The ir_prefix to use for this IRDocsifier.
    */
   explicit IRDocsifier(Map<String, String> ir_prefix);
-
-  using FType = IRDocsifierFunctor<printer::Doc, ObjectPath, IRDocsifier>;
-  /*!
-   * \brief The registration table for IRDocsifier.
-   */
+  /*! \brief The registration table for IRDocsifier. */
   TVM_DLL static FType& vtable();
 
   TVM_DEFINE_MUTABLE_NOTNULLABLE_OBJECT_REF_METHODS(IRDocsifier, ObjectRef, IRDocsifierNode);
@@ -235,10 +256,10 @@ inline void FrameNode::EnterWithScope() {
 }
 
 inline void FrameNode::ExitWithScope() {
-  for (const std::function<void()>& callback : callbacks_) {
+  for (const std::function<void()>& callback : callbacks) {
     callback();
   }
-  callbacks_.clear();
+  callbacks.clear();
   if (d != nullptr) {
     d->frames.pop_back();
   }

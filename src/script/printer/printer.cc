@@ -23,10 +23,13 @@ namespace tvm {
 namespace script {
 namespace printer {
 
-String Script(ObjectRef obj, int indent, Map<String, String> ir_prefix) {
+String Script(ObjectRef obj, Map<String, String> ir_prefix, int indent_spaces,
+              bool print_line_numbers, int num_context_lines,
+              Optional<ObjectPath> path_to_underline) {
   IRDocsifier d(ir_prefix);
   Doc doc = d->AsDoc(obj, ObjectPath::Root());
-  return DocToPythonScript(doc, indent);
+  return DocToPythonScript(doc, indent_spaces, print_line_numbers, num_context_lines,
+                           path_to_underline);
 }
 
 Default* Default::Instance() {
@@ -34,84 +37,12 @@ Default* Default::Instance() {
   return &inst;
 }
 
-CommonAncestorInfo VarUseAnalysis(const IRDocsifier& d, const ObjectRef& root,
-                                  runtime::TypedPackedFunc<bool(ObjectRef)> is_var) {
-  class Visitor : public AttrVisitor {
-   public:
-    inline void operator()(ObjectRef obj) { Visit("", &obj); }
-
-   private:
-    void Visit(const char* key, double* value) final {}
-    void Visit(const char* key, int64_t* value) final {}
-    void Visit(const char* key, uint64_t* value) final {}
-    void Visit(const char* key, int* value) final {}
-    void Visit(const char* key, bool* value) final {}
-    void Visit(const char* key, std::string* value) final {}
-    void Visit(const char* key, void** value) final {}
-    void Visit(const char* key, DataType* value) final {}
-    void Visit(const char* key, runtime::NDArray* value) final {}
-    void Visit(const char* key, ObjectRef* value) final {
-      const Object* obj = value->get();
-      if (obj == nullptr) {
-        return;
-      }
-      stack_.push_back(obj);
-      if (obj->IsInstance<ArrayNode>()) {
-        const ArrayNode* array = static_cast<const ArrayNode*>(obj);
-        for (ObjectRef element : *array) {
-          this->Visit("", &element);
-        }
-      } else if (obj->IsInstance<MapNode>()) {
-        const MapNode* map = static_cast<const MapNode*>(obj);
-        for (std::pair<ObjectRef, ObjectRef> kv : *map) {
-          this->Visit("", &kv.first);
-          this->Visit("", &kv.second);
-        }
-      } else {
-        vtable_->VisitAttrs(const_cast<Object*>(obj), this);
-      }
-      if (is_var(GetRef<ObjectRef>(obj))) {
-        HandleVar(obj);
-      }
-      stack_.pop_back();
-    }
-
-    void HandleVar(const Object* var) {
-      if (common_prefix.count(var) == 0) {
-        common_prefix[var] = stack_;
-        return;
-      }
-      std::vector<const Object*>& a = common_prefix[var];
-      std::vector<const Object*>& b = stack_;
-      int n = std::min(a.size(), b.size());
-      for (int i = 0; i < n; ++i) {
-        if (a[i] != b[i]) {
-          a.resize(i);
-          break;
-        }
-      }
-    }
-
-    ReflectionVTable* vtable_ = ReflectionVTable::Global();
-    std::vector<const Object*> stack_;
-
-   public:
-    runtime::TypedPackedFunc<bool(ObjectRef)> is_var;
-    std::unordered_map<const Object*, std::vector<const Object*>> common_prefix;
-  };
-  Visitor visitor;
-  visitor.is_var = is_var;
-  visitor(root);
-  ObjectPtr<CommonAncestorInfoNode> n = make_object<CommonAncestorInfoNode>();
-  n->stmts.clear();
-  n->d = d.get();
-  n->common_prefix = std::move(visitor.common_prefix);
-  return CommonAncestorInfo(n);
-}
-
-TVM_REGISTER_NODE_TYPE(CommonAncestorInfoNode);
-TVM_REGISTER_GLOBAL("script.printer.Script").set_body_typed(Script);
-TVM_REGISTER_GLOBAL("script.printer.VarUseAnalysis").set_body_typed(VarUseAnalysis);
+TVM_REGISTER_GLOBAL("script.printer.Script")
+    .set_body_typed([](ObjectRef obj, int indent_spaces, Map<String, String> ir_prefix) {
+      // TODO
+      return Script(obj, ir_prefix, indent_spaces, false, 0, NullOpt);
+    });
+;
 
 }  // namespace printer
 }  // namespace script

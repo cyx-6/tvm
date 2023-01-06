@@ -36,9 +36,9 @@ String FindFunctionName(const IRDocsifier& d, const tir::PrimFunc& f) {
 
 TVM_STATIC_IR_FUNCTOR(IRDocsifier, vtable)
     .set_dispatch<tir::PrimFunc>("", [](tir::PrimFunc func, ObjectPath p, IRDocsifier d) -> Doc {
-      With<CommonAncestorInfo> info(VarUseAnalysis(d, func, [](const ObjectRef& obj) {
+      d->SetCommonPrefix(func, [](const ObjectRef& obj) {
         return obj->IsInstance<tir::VarNode>() || obj->IsInstance<tir::BufferNode>();
-      }));
+      });
       With<TIRFrame> frame(d, func);
       (*frame)->AddDispatchToken(d, "tir");
       int n_args = func->params.size();

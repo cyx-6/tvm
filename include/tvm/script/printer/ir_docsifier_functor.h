@@ -126,6 +126,12 @@ class IRDocsifierFunctor {
   }
 
  private:
+  /*!
+   * \brief Look up the dispatch table for the given token and type_index.
+   * \param token The dispatch token.
+   * \param type_index The TVM object type index.
+   * \return Returns the functor if the lookup succeeds, nullptr otherwise.
+   */
   const runtime::PackedFunc* LookupDispatchTable(const String& token, uint32_t type_index) const {
     auto it = dispatch_table_.find(token);
     if (it == dispatch_table_.end()) {

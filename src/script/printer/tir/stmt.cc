@@ -137,14 +137,10 @@ TVM_STATIC_IR_FUNCTOR(IRDocsifier, vtable)
 
 TVM_STATIC_IR_FUNCTOR(IRDocsifier, vtable)
     .set_dispatch<tir::SeqStmt>("", [](tir::SeqStmt stmt, ObjectPath p, IRDocsifier d) -> Doc {
+      // TODO(@junrushao): revisit for fragment printing
       With<TIRFrame> f(d, stmt);
-      Array<tir::Stmt> body = stmt->seq;
-      p = p->Attr("seq");
-      for (int i = 0, n = body.size(); i < n; ++i) {
-        (*f)->allow_concise_scoping = (i == n - 1);
-        AddStmtDoc(&(*f)->stmts, d->AsDoc(body[i], p->ArrayIndex(i)));
-      }
-      return StmtBlockDoc((*f)->stmts);  // TODO(@junrushao): revisit for fragment printing
+      AsDocBody(stmt, p, f->get(), d);
+      return StmtBlockDoc((*f)->stmts);
     });
 
 TVM_STATIC_IR_FUNCTOR(IRDocsifier, vtable)
@@ -162,7 +158,6 @@ TVM_STATIC_IR_FUNCTOR(IRDocsifier, vtable)
     .set_dispatch<tir::Allocate>(  //
         "", [](tir::Allocate stmt, ObjectPath p, IRDocsifier d) -> Doc {
           bool concise = AllowConciseScoping(d);
-          // TODO(@junrushao): sugar allocate + decl_buffer
           String storage_scope = tir::GetPtrStorageScope(stmt->buffer_var);
           Array<ExprDoc> args;
           Array<String> kwargs_keys;
