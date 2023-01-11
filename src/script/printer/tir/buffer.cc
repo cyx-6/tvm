@@ -126,6 +126,25 @@ ExprDoc BufferDecl(const tir::Buffer& buffer, const String& method, const Array<
                     /*args=*/args);
 }
 
+ExprDoc BufferAttn(const tir::Buffer& buffer, const ObjectPath& p, const Frame& frame,
+                   const IRDocsifier& d) {
+  Array<Doc> indices_doc;
+  if (buffer->shape.size() == 1) {
+    indices_doc.push_back(d->AsDoc<ExprDoc>(buffer->shape[0], p->Attr("shape")->ArrayIndex(0)));
+  } else {
+    Array<ExprDoc> shape_doc;
+    int n = buffer->shape.size();
+    for (int i = 0; i < n; ++i) {
+      shape_doc.push_back(d->AsDoc<ExprDoc>(buffer->shape[i], p->Attr("shape")->ArrayIndex(i)));
+    }
+    indices_doc.push_back(TupleDoc(shape_doc));
+  }
+  if (buffer->dtype != Default::BufferDType()) {
+    indices_doc.push_back(LiteralDoc::DataType(buffer->dtype));
+  }
+  return TIR(d)->Attr("Buffer")[indices_doc];
+}
+
 Doc BufferIndex(const PrimExpr& index, const ObjectPath& p, const IRDocsifier& d) {
   if (const auto* ramp = index.as<tir::RampNode>()) {
     if (const auto* stride = ramp->stride.as<IntImmNode>()) {
