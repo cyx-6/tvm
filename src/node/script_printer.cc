@@ -67,6 +67,9 @@ PrinterConfig::PrinterConfig(Map<String, ObjectRef> config_dict) {
   if (auto v = config_dict.Get("path_to_underline")) {
     n->path_to_underline = Downcast<ObjectPath>(v);
   }
+  if (auto v = config_dict.Get("syntax_sugar")) {
+    n->syntax_sugar = Downcast<IntImm>(v)->value;
+  }
   this->data_ = std::move(n);
 }
 

@@ -264,6 +264,8 @@ class SEqualHandlerDefault::Impl {
     pending_tasks_.clear();
     equal_map_lhs_.clear();
     equal_map_rhs_.clear();
+    root_lhs = lhs;
+    root_rhs = rhs;
 
     Optional<ObjectPathPair> current_paths;
     if (IsPathTracingEnabled()) {
@@ -313,10 +315,26 @@ class SEqualHandlerDefault::Impl {
       *first_mismatch_ = current_paths;
     }
     if (assert_mode_ && !result) {
-      LOG(FATAL) << "ValueError: StructuralEqual check failed, caused by lhs:" << std::endl
-                 << lhs << std::endl
-                 << "and rhs:" << std::endl
-                 << rhs;
+      std::ostringstream oss;
+      oss << "ValueError: StructuralEqual check failed, caused by lhs:" << std::endl;
+      if (root_lhs.defined() && current_paths.defined()) {
+        Map<String, ObjectRef> dict = {{"path_to_underline", current_paths.value()->lhs_path},
+                                       {"syntax_sugar", Bool(false)}};
+        PrinterConfig cfg(dict);
+        oss << TVMScriptPrinter::Script(root_lhs, cfg);
+      } else {
+        oss << lhs;
+      }
+      oss << std::endl << "and rhs:" << std::endl;
+      if (root_rhs.defined() && current_paths.defined()) {
+        Map<String, ObjectRef> dict = {{"path_to_underline", current_paths.value()->rhs_path},
+                                       {"syntax_sugar", Bool(false)}};
+        PrinterConfig cfg(dict);
+        oss << TVMScriptPrinter::Script(root_rhs, cfg);
+      } else {
+        oss << rhs;
+      }
+      LOG(FATAL) << oss.str();
     }
     return result;
   }
@@ -427,6 +445,10 @@ class SEqualHandlerDefault::Impl {
   std::unordered_map<ObjectRef, ObjectRef, ObjectPtrHash, ObjectPtrEqual> equal_map_lhs_;
   // map from rhs to lhs
   std::unordered_map<ObjectRef, ObjectRef, ObjectPtrHash, ObjectPtrEqual> equal_map_rhs_;
+  // root lhs for result printing
+  Optional<ObjectRef> root_lhs;
+  // root rhs for result printing
+  Optional<ObjectRef> root_rhs;
 };
 
 SEqualHandlerDefault::SEqualHandlerDefault(bool assert_mode,
@@ -463,7 +485,8 @@ bool SEqualHandlerDefault::DispatchSEqualReduce(const ObjectRef& lhs, const Obje
 TVM_REGISTER_GLOBAL("node.StructuralEqual")
     .set_body_typed([](const ObjectRef& lhs, const ObjectRef& rhs, bool assert_mode,
                        bool map_free_vars) {
-      return SEqualHandlerDefault(assert_mode, nullptr).Equal(lhs, rhs, map_free_vars);
+      Optional<ObjectPathPair> first_mismatch;
+      return SEqualHandlerDefault(assert_mode, &first_mismatch).Equal(lhs, rhs, map_free_vars);
     });
 
 TVM_REGISTER_GLOBAL("node.GetFirstStructuralMismatch")
