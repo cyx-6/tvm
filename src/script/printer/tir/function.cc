@@ -123,11 +123,11 @@ TVM_STATIC_IR_FUNCTOR(IRDocsifier, vtable)
           if (buffer_inlined.count(buffer.get())) {
             continue;
           }
-          ExprDoc param = args[i]->lhs;
+          ExprDoc param_doc = args[i]->lhs;
           ObjectPath buffer_p = p->Attr("buffer_map")->MapValue(param);
           ExprDoc lhs =
               DefineBuffer(buffer, *frame, d);  // TODO(@junrushao): switch `lhs` and `rhs`
-          ExprDoc rhs = BufferDecl(buffer, "match_buffer", {param}, buffer_p, *frame, d);
+          ExprDoc rhs = BufferDecl(buffer, "match_buffer", {param_doc}, buffer_p, *frame, d);
           (*frame)->stmts.push_back(AssignDoc(lhs, rhs, NullOpt));
         }
       }
