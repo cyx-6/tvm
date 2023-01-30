@@ -322,23 +322,35 @@ class SEqualHandlerDefault::Impl {
     }
     if (assert_mode_ && !result) {
       std::ostringstream oss;
-      oss << "ValueError: StructuralEqual check failed, caused by lhs:" << std::endl;
-      if (root_lhs_.defined() && current_paths.defined()) {
-        Map<String, ObjectRef> dict = {{"path_to_underline", current_paths.value()->lhs_path},
-                                       {"syntax_sugar", Bool(false)}};
-        PrinterConfig cfg(dict);
-        oss << TVMScriptPrinter::Script(root_lhs_.value(), cfg);
+      oss << "ValueError: StructuralEqual check failed, caused by lhs";
+      if (current_paths.defined()) {
+        oss << " at " << current_paths.value()->lhs_path;
+        if (root_lhs_.defined() && !root_lhs_->IsInstance<ArrayNode>() &&
+            !root_lhs_->IsInstance<MapNode>()) {
+          Map<String, ObjectRef> dict = {{"path_to_underline", current_paths.value()->lhs_path},
+                                         {"syntax_sugar", Bool(false)}};
+          PrinterConfig cfg(dict);
+          oss << ":" << std::endl << TVMScriptPrinter::Script(root_lhs_.value(), cfg);
+        } else {
+          oss << ":" << std::endl << lhs;
+        }
       } else {
-        oss << lhs;
+        oss << ":" << std::endl << lhs;
       }
-      oss << std::endl << "and rhs:" << std::endl;
-      if (root_rhs_.defined() && current_paths.defined()) {
-        Map<String, ObjectRef> dict = {{"path_to_underline", current_paths.value()->rhs_path},
-                                       {"syntax_sugar", Bool(false)}};
-        PrinterConfig cfg(dict);
-        oss << TVMScriptPrinter::Script(root_rhs_.value(), cfg);
+      oss << std::endl << "and rhs";
+      if (current_paths.defined()) {
+        oss << " at " << current_paths.value()->rhs_path;
+        if (root_rhs_.defined() && !root_rhs_->IsInstance<ArrayNode>() &&
+            !root_rhs_->IsInstance<MapNode>()) {
+          Map<String, ObjectRef> dict = {{"path_to_underline", current_paths.value()->rhs_path},
+                                         {"syntax_sugar", Bool(false)}};
+          PrinterConfig cfg(dict);
+          oss << ":" << std::endl << TVMScriptPrinter::Script(root_rhs_.value(), cfg);
+        } else {
+          oss << ":" << std::endl << rhs;
+        }
       } else {
-        oss << rhs;
+        oss << ":" << std::endl << rhs;
       }
       LOG(FATAL) << oss.str();
     }
@@ -443,7 +455,8 @@ class SEqualHandlerDefault::Impl {
   bool allow_push_to_stack_{true};
   //  If in assert mode, must return true, and will throw error otherwise.
   bool assert_mode_{false};
-  // Location to store the paths to the first detected mismatch, or nullptr to disable path tracing.
+  // Location to store the paths to the first detected mismatch, or nullptr to disable path
+  // tracing.
   Optional<ObjectPathPair>* first_mismatch_;
   // reflection vtable
   ReflectionVTable* vtable_ = ReflectionVTable::Global();

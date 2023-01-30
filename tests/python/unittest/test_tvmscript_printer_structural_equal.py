@@ -30,9 +30,9 @@ def _error_message(exception):
 
 
 def _expected_result(func1, func2, objpath1, objpath2):
-    return f"""ValueError: StructuralEqual check failed, caused by lhs:
+    return f"""ValueError: StructuralEqual check failed, caused by lhs at {objpath1}:
 {func1.script(path_to_underline=objpath1, syntax_sugar=False)}
-and rhs:
+and rhs at {objpath2}:
 {func2.script(path_to_underline=objpath2, syntax_sugar=False)}"""
 
 
@@ -79,8 +79,8 @@ def test_evaluate():
     assert _error_message(ve.value) == _expected_result(
         func1,
         func2,
-        ObjectPath.root().attr("body").attr("value").attr("value"),
-        ObjectPath.root().attr("body").attr("value").attr("value"),
+        ObjectPath.root().attr("body").attr("value"),
+        ObjectPath.root().attr("body").attr("value"),
     )
 
 
@@ -100,8 +100,8 @@ def test_allocate():
     assert _error_message(ve.value) == _expected_result(
         func1,
         func2,
-        ObjectPath.root().attr("body").attr("extents").array_index(0).attr("value"),
-        ObjectPath.root().attr("body").attr("extents").array_index(0).attr("value"),
+        ObjectPath.root().attr("body").attr("extents").array_index(0),
+        ObjectPath.root().attr("body").attr("extents").array_index(0),
     )
 
 
