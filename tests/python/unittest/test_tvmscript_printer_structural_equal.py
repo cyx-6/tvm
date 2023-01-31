@@ -56,12 +56,14 @@ def test_prim_func_buffer_map():
         .attr("buffer_map")
         .map_value(func1.params[1])
         .attr("shape")
-        .array_index(1),
+        .array_index(1)
+        .attr("value"),
         ObjectPath.root()
         .attr("buffer_map")
         .map_value(func2.params[1])
         .attr("shape")
-        .array_index(1),
+        .array_index(1)
+        .attr("value"),
     )
 
 
@@ -79,8 +81,8 @@ def test_evaluate():
     assert _error_message(ve.value) == _expected_result(
         func1,
         func2,
-        ObjectPath.root().attr("body").attr("value"),
-        ObjectPath.root().attr("body").attr("value"),
+        ObjectPath.root().attr("body").attr("value").attr("value"),
+        ObjectPath.root().attr("body").attr("value").attr("value"),
     )
 
 
@@ -100,8 +102,8 @@ def test_allocate():
     assert _error_message(ve.value) == _expected_result(
         func1,
         func2,
-        ObjectPath.root().attr("body").attr("extents").array_index(0),
-        ObjectPath.root().attr("body").attr("extents").array_index(0),
+        ObjectPath.root().attr("body").attr("extents").array_index(0).attr("value"),
+        ObjectPath.root().attr("body").attr("extents").array_index(0).attr("value"),
     )
 
 

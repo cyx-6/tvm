@@ -323,11 +323,11 @@ class SEqualHandlerDefault::Impl {
     if (assert_mode_ && !result) {
       std::ostringstream oss;
       oss << "ValueError: StructuralEqual check failed, caused by lhs";
-      if (current_paths.defined()) {
-        oss << " at " << current_paths.value()->lhs_path;
+      if (first_mismatch_->defined()) {
+        oss << " at " << first_mismatch_->value()->lhs_path;
         if (root_lhs_.defined() && !root_lhs_->IsInstance<ArrayNode>() &&
             !root_lhs_->IsInstance<MapNode>()) {
-          Map<String, ObjectRef> dict = {{"path_to_underline", current_paths.value()->lhs_path},
+          Map<String, ObjectRef> dict = {{"path_to_underline", first_mismatch_->value()->lhs_path},
                                          {"syntax_sugar", Bool(false)}};
           PrinterConfig cfg(dict);
           oss << ":" << std::endl << TVMScriptPrinter::Script(root_lhs_.value(), cfg);
@@ -338,11 +338,11 @@ class SEqualHandlerDefault::Impl {
         oss << ":" << std::endl << lhs;
       }
       oss << std::endl << "and rhs";
-      if (current_paths.defined()) {
-        oss << " at " << current_paths.value()->rhs_path;
+      if (first_mismatch_->defined()) {
+        oss << " at " << first_mismatch_->value()->rhs_path;
         if (root_rhs_.defined() && !root_rhs_->IsInstance<ArrayNode>() &&
             !root_rhs_->IsInstance<MapNode>()) {
-          Map<String, ObjectRef> dict = {{"path_to_underline", current_paths.value()->rhs_path},
+          Map<String, ObjectRef> dict = {{"path_to_underline", first_mismatch_->value()->rhs_path},
                                          {"syntax_sugar", Bool(false)}};
           PrinterConfig cfg(dict);
           oss << ":" << std::endl << TVMScriptPrinter::Script(root_rhs_.value(), cfg);
