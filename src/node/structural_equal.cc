@@ -330,7 +330,7 @@ class SEqualHandlerDefault::Impl {
                                          {"syntax_sugar", Bool(false)}};
           PrinterConfig cfg(dict);
           // The TVMScriptPrinter::Script will fallback to Repr printer,
-          // if the root nodes to print is not supported yet,
+          // if the root node to print is not supported yet,
           // e.g. Relay nodes, ArrayNode, MapNode, etc.
           oss << ":" << std::endl << TVMScriptPrinter::Script(root_lhs_.value(), cfg);
         }
@@ -345,7 +345,7 @@ class SEqualHandlerDefault::Impl {
                                          {"syntax_sugar", Bool(false)}};
           PrinterConfig cfg(dict);
           // The TVMScriptPrinter::Script will fallback to Repr printer,
-          // if the root nodes to print is not supported yet,
+          // if the root node to print is not supported yet,
           // e.g. Relay nodes, ArrayNode, MapNode, etc.
           oss << ":" << std::endl << TVMScriptPrinter::Script(root_rhs_.value(), cfg);
         }
