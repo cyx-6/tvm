@@ -29,6 +29,9 @@ TVMScriptPrinter::FType& TVMScriptPrinter::vtable() {
 }
 
 std::string TVMScriptPrinter::Script(const ObjectRef& node, const Optional<PrinterConfig>& cfg) {
+  if (!TVMScriptPrinter::vtable().can_dispatch(node)) {
+    return AsLegacyRepr(node);
+  }
   return TVMScriptPrinter::vtable()(node, cfg.value_or(PrinterConfig()));
 }
 

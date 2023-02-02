@@ -325,14 +325,11 @@ class SEqualHandlerDefault::Impl {
       oss << "ValueError: StructuralEqual check failed, caused by lhs";
       if (first_mismatch_->defined()) {
         oss << " at " << first_mismatch_->value()->lhs_path;
-        if (root_lhs_.defined() && !root_lhs_->IsInstance<ArrayNode>() &&
-            !root_lhs_->IsInstance<MapNode>()) {
+        if (root_lhs_.defined()) {
           Map<String, ObjectRef> dict = {{"path_to_underline", first_mismatch_->value()->lhs_path},
                                          {"syntax_sugar", Bool(false)}};
           PrinterConfig cfg(dict);
           oss << ":" << std::endl << TVMScriptPrinter::Script(root_lhs_.value(), cfg);
-        } else {
-          oss << ":" << std::endl << lhs;
         }
       } else {
         oss << ":" << std::endl << lhs;
@@ -340,14 +337,11 @@ class SEqualHandlerDefault::Impl {
       oss << std::endl << "and rhs";
       if (first_mismatch_->defined()) {
         oss << " at " << first_mismatch_->value()->rhs_path;
-        if (root_rhs_.defined() && !root_rhs_->IsInstance<ArrayNode>() &&
-            !root_rhs_->IsInstance<MapNode>()) {
+        if (root_rhs_.defined()) {
           Map<String, ObjectRef> dict = {{"path_to_underline", first_mismatch_->value()->rhs_path},
                                          {"syntax_sugar", Bool(false)}};
           PrinterConfig cfg(dict);
           oss << ":" << std::endl << TVMScriptPrinter::Script(root_rhs_.value(), cfg);
-        } else {
-          oss << ":" << std::endl << rhs;
         }
       } else {
         oss << ":" << std::endl << rhs;
