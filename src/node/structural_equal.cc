@@ -329,6 +329,9 @@ class SEqualHandlerDefault::Impl {
           Map<String, ObjectRef> dict = {{"path_to_underline", first_mismatch_->value()->lhs_path},
                                          {"syntax_sugar", Bool(false)}};
           PrinterConfig cfg(dict);
+          // The TVMScriptPrinter::Script will fallback to Repr printer,
+          // if the root nodes to print is not supported yet,
+          // e.g. Relay nodes, ArrayNode, MapNode, etc.
           oss << ":" << std::endl << TVMScriptPrinter::Script(root_lhs_.value(), cfg);
         }
       } else {
@@ -341,6 +344,9 @@ class SEqualHandlerDefault::Impl {
           Map<String, ObjectRef> dict = {{"path_to_underline", first_mismatch_->value()->rhs_path},
                                          {"syntax_sugar", Bool(false)}};
           PrinterConfig cfg(dict);
+          // The TVMScriptPrinter::Script will fallback to Repr printer,
+          // if the root nodes to print is not supported yet,
+          // e.g. Relay nodes, ArrayNode, MapNode, etc.
           oss << ":" << std::endl << TVMScriptPrinter::Script(root_rhs_.value(), cfg);
         }
       } else {
