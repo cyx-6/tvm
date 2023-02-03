@@ -27,6 +27,7 @@ from tvm.script.printer.doc import (
     StmtBlockDoc,
 )
 from tvm.script.printer.doc_printer import to_python_script
+from tvm.script import tir as T
 
 
 def make_path(name: str) -> ObjectPath:
@@ -311,6 +312,42 @@ def test_underline_and_print_line_numbers():
     )
 
 
+def test_underline_multi_object_paths():
+    doc = StmtBlockDoc([ExprStmtDoc(make_id_doc(f"line{i + 1}")) for i in range(10)])
+    result = to_python_script(
+        doc,
+        path_to_underline=[
+            make_path("line1"),
+            make_path("line3"),
+            make_path("line5"),
+            make_path("line7"),
+            make_path("line9"),
+        ],
+    )
+    assert (
+        result.strip()
+        == format_script(
+            """
+            line1
+            ^^^^^
+            line2
+            line3
+            ^^^^^
+            line4
+            line5
+            ^^^^^
+            line6
+            line7
+            ^^^^^
+            line8
+            line9
+            ^^^^^
+            line10
+    """
+        ).strip()
+    )
+
+
 def test_underline_and_print_line_numbers_with_context():
     doc = StmtBlockDoc([ExprStmtDoc(make_id_doc(f"line{i + 1}")) for i in range(12)])
     result = to_python_script(
@@ -359,5 +396,77 @@ def test_longer_prefix_must_win():
         bar
         foo_x
         ^^^^^
+    """
+    )
+
+
+def test_underline_from_obj():
+    @T.prim_func
+    def func(a: T.int32, b: T.int32):
+        T.evaluate(a)
+        T.evaluate(b)
+        T.evaluate(a)
+        T.evaluate(b)
+        T.evaluate(a)
+        T.evaluate(b)
+
+    result = func.script(obj_to_underline=[func.params[0]])
+    assert result == format_script(
+        """
+        # from tvm.script import tir as T
+
+        @T.prim_func
+        def main(a: T.int32, b: T.int32):
+            T.evaluate(a)
+                       ^
+            T.evaluate(b)
+            T.evaluate(a)
+                       ^
+            T.evaluate(b)
+            T.evaluate(a)
+                       ^
+            T.evaluate(b)
+    """
+    )
+
+
+def test_underline_from_multi_obj():
+    @T.prim_func
+    def func():
+        T.evaluate(0)
+        T.evaluate(1)
+        T.evaluate(2)
+        T.evaluate(3)
+        T.evaluate(4)
+        T.evaluate(5)
+        T.evaluate(6)
+        T.evaluate(7)
+
+    result = func.script(
+        obj_to_underline=[
+            func.body.seq[1],
+            func.body.seq[3],
+            func.body.seq[5],
+            func.body.seq[7],
+        ]
+    )
+    assert result == format_script(
+        """
+        # from tvm.script import tir as T
+
+        @T.prim_func
+        def main():
+            T.evaluate(0)
+            T.evaluate(1)
+            ^^^^^^^^^^^^^
+            T.evaluate(2)
+            T.evaluate(3)
+            ^^^^^^^^^^^^^
+            T.evaluate(4)
+            T.evaluate(5)
+            ^^^^^^^^^^^^^
+            T.evaluate(6)
+            T.evaluate(7)
+            ^^^^^^^^^^^^^
     """
     )
