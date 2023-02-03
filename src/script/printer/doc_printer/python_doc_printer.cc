@@ -671,7 +671,7 @@ String DocToPythonScript(Doc doc, const PrinterConfig& cfg) {
     cfg->num_context_lines = std::numeric_limits<int32_t>::max();
   }
   PythonDocPrinter printer(cfg);
-  printer.Append(doc, cfg->path_to_underline);
+  printer.Append(doc, cfg);
   std::string result = printer.GetString();
   int last_space = result.size();
   while (last_space > 0 && std::isspace(result[last_space - 1])) {

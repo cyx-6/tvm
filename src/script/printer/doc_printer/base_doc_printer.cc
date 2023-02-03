@@ -240,16 +240,18 @@ DocPrinter::DocPrinter(const PrinterConfig& options) : options_(options) {
   line_starts_.push_back(0);
 }
 
-void DocPrinter::Append(const Doc& doc) { Append(doc, NullOpt); }
+void DocPrinter::Append(const Doc& doc) { Append(doc, PrinterConfig()); }
 
-void DocPrinter::Append(const Doc& doc, Optional<ObjectPath> path_to_underline) {
-  path_to_underline_ = path_to_underline;
-  current_max_path_length_ = 0;
-  current_underline_candidates_.clear();
+void DocPrinter::Append(const Doc& doc, const PrinterConfig& cfg) {
+  for (const ObjectPath& p : cfg->path_to_underline) {
+    path_to_underline_.push_back(p);
+    current_max_path_length_.push_back(0);
+    current_underline_candidates_.push_back(std::vector<ByteSpan>());
+  }
   PrintDoc(doc);
-
-  underlines_.insert(underlines_.end(), current_underline_candidates_.begin(),
-                     current_underline_candidates_.end());
+  for (const auto& c : current_underline_candidates_) {
+    underlines_.insert(underlines_.end(), c.begin(), c.end());
+  }
 }
 
 String DocPrinter::GetString() const {
@@ -332,14 +334,15 @@ void DocPrinter::PrintDoc(const Doc& doc) {
 }
 
 void DocPrinter::MarkSpan(const ByteSpan& span, const ObjectPath& path) {
-  if (path_to_underline_.defined()) {
-    if (path->Length() >= current_max_path_length_ &&
-        path->IsPrefixOf(path_to_underline_.value())) {
-      if (path->Length() > current_max_path_length_) {
-        current_max_path_length_ = path->Length();
-        current_underline_candidates_.clear();
+  int n = path_to_underline_.size();
+  for (int i = 0; i < n; ++i) {
+    ObjectPath p = path_to_underline_[i];
+    if (path->Length() >= current_max_path_length_[i] && path->IsPrefixOf(p)) {
+      if (path->Length() > current_max_path_length_[i]) {
+        current_max_path_length_[i] = path->Length();
+        current_underline_candidates_[i].clear();
       }
-      current_underline_candidates_.push_back(span);
+      current_underline_candidates_[i].push_back(span);
     }
   }
 }
