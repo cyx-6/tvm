@@ -462,7 +462,7 @@ def test_reorder_fail_block():
         "                            # tir.Block#0\n"
         "                            ^^^^^^^^^^^^^\n"
         '                            with T.block("B"):\n'
-        "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
+        "                            ^^^^^^^^^^^^^^^^^^\n"
     )
     assert expected_sub_error_message in str(execinfo.value)
 
@@ -478,7 +478,7 @@ def test_reorder_fail_nested_loop_inner():
         "                # tir.For#0\n"
         "                ^^^^^^^^^^^\n"
         "                for j in range(128):\n"
-        "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
+        "                ^^^^^^^^^^^^^^^^^^^^\n"
     )
     assert expected_sub_error_message in str(execinfo.value)
 
@@ -493,7 +493,7 @@ def test_fuse_fail_nested_loop_outer():
         "            # tir.For#1\n"
         "            ^^^^^^^^^^^\n"
         "            for i in range(128):\n"
-        "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
+        "            ^^^^^^^^^^^^^^^^^^^^\n"
         "                for j in range(128):\n"
     )
     assert expected_sub_error_message in str(execinfo.value)
@@ -508,7 +508,7 @@ def test_report_error_root_block():
         "        # tir.Block#0\n"
         "        ^^^^^^^^^^^^^\n"
         '        with T.block("root"):\n'
-        "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
+        "        ^^^^^^^^^^^^^^^^^^^^^\n"
     )
     assert expected_sub_error_message in str(execinfo.value)
 

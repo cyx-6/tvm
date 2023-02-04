@@ -100,9 +100,15 @@ void PrintChunk(const std::pair<size_t, size_t>& lines_range,
     bool printed_underline = false;
     size_t line_pos = line_start;
     bool printed_extra_caret = 0;
+    int indent = 0;
+    while (text[line_pos] == ' ' && line_pos < line_end) {
+      ++indent;
+      ++line_pos;
+      current_underline.first = std::max(current_underline.first, line_pos);
+    }
     while (current_underline.first < line_end) {
       if (!printed_underline) {
-        *out += std::string(line_number_width, ' ');
+        *out += std::string(line_number_width + indent, ' ');
         printed_underline = true;
       }
 
