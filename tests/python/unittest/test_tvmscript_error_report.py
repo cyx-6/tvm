@@ -459,9 +459,10 @@ def test_reorder_fail_block():
     with pytest.raises(tvm.tir.ScheduleError) as execinfo:
         sch.reorder(l, i)
     expected_sub_error_message = (
-        "            # tir.Block#0\n"
-        '            with T.block("B"):\n'
-        "            ^^^^^^^^^^^^^^^^^^\n"
+        "                            # tir.Block#0\n"
+        "                            ^^^^^^^^^^^^^\n"
+        '                            with T.block("B"):\n'
+        "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
     )
     assert expected_sub_error_message in str(execinfo.value)
 
@@ -473,10 +474,11 @@ def test_reorder_fail_nested_loop_inner():
     with pytest.raises(tvm.tir.ScheduleError) as execinfo:
         sch.reorder(k, i)
     expected_sub_error_message = (
-        "        for i in T.serial(128):\n"
-        "            # tir.For#0\n"
-        "            for j in T.serial(128):\n"
-        "            ^^^^^^^^^^^^^^^^^^^^^^^\n"
+        "            for i in range(128):\n"
+        "                # tir.For#0\n"
+        "                ^^^^^^^^^^^\n"
+        "                for j in range(128):\n"
+        "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
     )
     assert expected_sub_error_message in str(execinfo.value)
 
@@ -488,10 +490,11 @@ def test_fuse_fail_nested_loop_outer():
     with pytest.raises(tvm.tir.ScheduleError) as execinfo:
         sch.fuse(k, i)
     expected_sub_error_message = (
-        "        # tir.For#1\n"
-        "        for i in T.serial(128):\n"
-        "        ^^^^^^^^^^^^^^^^^^^^^^^\n"
-        "            for j in T.serial(128):\n"
+        "            # tir.For#1\n"
+        "            ^^^^^^^^^^^\n"
+        "            for i in range(128):\n"
+        "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
+        "                for j in range(128):\n"
     )
     assert expected_sub_error_message in str(execinfo.value)
 
@@ -503,8 +506,9 @@ def test_report_error_root_block():
         sch.compute_inline(root)
     expected_sub_error_message = (
         "        # tir.Block#0\n"
+        "        ^^^^^^^^^^^^^\n"
         '        with T.block("root"):\n'
-        "        ^^^^^^^^^^^^^^^^^^^^^\n"
+        "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
     )
     assert expected_sub_error_message in str(execinfo.value)
 
