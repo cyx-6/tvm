@@ -284,8 +284,7 @@ class PythonDocPrinter : public DocPrinter {
     }
   }
 
-  void PrintBlockComment(const String& comment) {
-    IncreaseIndent();
+  void PrintDocString(const String& comment) {
     size_t start_pos = output_.tellp();
     output_ << "\"\"\"";
 
@@ -302,6 +301,12 @@ class PythonDocPrinter : public DocPrinter {
     NewLine() << "\"\"\"";
     size_t end_pos = output_.tellp();
     underlines_exempted_.push_back({start_pos, end_pos});
+  }
+
+  void PrintBlockComment(const String& comment) {
+    IncreaseIndent();
+    NewLine();
+    PrintDocString(comment);
     DecreaseIndent();
   }
 };
@@ -648,7 +653,6 @@ void PythonDocPrinter::PrintTypedDoc(const FunctionDoc& doc) {
   output_ << ":";
 
   if (doc->comment.defined()) {
-    NewLine();
     PrintBlockComment(doc->comment.value());
   }
   PrintIndentedBlock(doc->body);
@@ -663,7 +667,6 @@ void PythonDocPrinter::PrintTypedDoc(const ClassDoc& doc) {
   output_ << ":";
 
   if (doc->comment.defined()) {
-    NewLine();
     PrintBlockComment(doc->comment.value());
   }
   PrintIndentedBlock(doc->body);
@@ -678,7 +681,7 @@ void PythonDocPrinter::PrintTypedDoc(const CommentDoc& doc) {
 
 void PythonDocPrinter::PrintTypedDoc(const DocStringDoc& doc) {
   if (doc->comment.defined() && !doc->comment.value().empty()) {
-    PrintBlockComment(doc->comment.value());
+    PrintDocString(doc->comment.value());
   }
 }
 
