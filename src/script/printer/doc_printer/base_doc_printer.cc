@@ -25,44 +25,38 @@ namespace printer {
 
 namespace {
 
-void SortAndMergeSpans(std::vector<ByteSpan>* spans) {
-  if (spans->empty()) {
-    return;
-  }
-  std::sort(spans->begin(), spans->end());
-  auto last = spans->begin();
-  for (auto cur = spans->begin() + 1; cur != spans->end(); ++cur) {
-    if (cur->first > last->second) {
-      *++last = *cur;
-    } else if (cur->second > last->second) {
-      last->second = cur->second;
-    }
-  }
-  spans->erase(++last, spans->end());
-}
-
-std::vector<ByteSpan> FilterSpans(std::vector<ByteSpan>* spans,
-                                  std::vector<ByteSpan>* spans_exempted) {
-  if (spans->empty() || spans_exempted->empty()) {
-    return *spans;
-  }
+std::vector<ByteSpan> MergeAndExemptSpans(const std::vector<ByteSpan>& spans,
+                                          const std::vector<ByteSpan>& spans_exempted) {
+  // use prefix sum to merge and exempt spans
   std::vector<ByteSpan> res;
-  std::vector<std::pair<size_t, int>> prefix_sum;
-  for (ByteSpan span : *spans) {
-    prefix_sum.push_back({span.first, 1});
-    prefix_sum.push_back({span.second, -1});
+  std::vector<std::pair<size_t, int>> prefix_stamp;
+  for (ByteSpan span : spans) {
+    prefix_stamp.push_back({span.first, 1});
+    prefix_stamp.push_back({span.second, -1});
   }
-  for (ByteSpan span : *spans_exempted) {
-    prefix_sum.push_back({span.first, -1});
-    prefix_sum.push_back({span.second, 1});
+  // at most spans.size() spans accumulated in prefix sum
+  // use spans.size() + 1 as stamp unit to exempt all positive spans
+  // with only one negative span
+  int max_n = spans.size() + 1;
+  for (ByteSpan span : spans_exempted) {
+    prefix_stamp.push_back({span.first, -max_n});
+    prefix_stamp.push_back({span.second, max_n});
   }
-  std::sort(prefix_sum.begin(), prefix_sum.end());
-  int sum = 0;
-  int n = prefix_sum.size();
+  std::sort(prefix_stamp.begin(), prefix_stamp.end());
+  int prefix_sum = 0;
+  int n = prefix_stamp.size();
   for (int i = 0; i < n - 1; ++i) {
-    sum += prefix_sum[i].second;
-    if (sum > 0 && prefix_sum[i].first < prefix_sum[i + 1].first) {
-      res.push_back({prefix_sum[i].first, prefix_sum[i + 1].first});
+    prefix_sum += prefix_stamp[i].second;
+    // positive prefix sum leads to spans without exemption
+    // different stamp positions guarantee the stamps in same position accumulated
+    if (prefix_sum > 0 && prefix_stamp[i].first < prefix_stamp[i + 1].first) {
+      if (res.size() && res.back().second == prefix_stamp[i].first) {
+        // merge to the last spans if it is successive
+        res.back().second = prefix_stamp[i + 1].first;
+      } else {
+        // add a new independent span
+        res.push_back({prefix_stamp[i].first, prefix_stamp[i + 1].first});
+      }
     }
   }
   return res;
@@ -293,12 +287,8 @@ String DocPrinter::GetString() const {
     text.push_back('\n');
   }
 
-  std::vector<ByteSpan> underlines = underlines_;
-  SortAndMergeSpans(&underlines);
-  std::vector<ByteSpan> underlines_exempted = underlines_exempted_;
-  SortAndMergeSpans(&underlines_exempted);
-  std::vector<ByteSpan> final_underlines = FilterSpans(&underlines, &underlines_exempted);
-  return DecorateText(text, line_starts_, options_, final_underlines);
+  return DecorateText(text, line_starts_, options_,
+                      MergeAndExemptSpans(underlines_, underlines_exempted_));
 }
 
 void DocPrinter::PrintDoc(const Doc& doc) {
