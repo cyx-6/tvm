@@ -41,6 +41,33 @@ void SortAndMergeSpans(std::vector<ByteSpan>* spans) {
   spans->erase(++last, spans->end());
 }
 
+std::vector<ByteSpan> FilterSpans(std::vector<ByteSpan>* spans,
+                                  std::vector<ByteSpan>* spans_exempted) {
+  if (spans->empty() || spans_exempted->empty()) {
+    return *spans;
+  }
+  std::vector<ByteSpan> res;
+  std::vector<std::pair<size_t, int>> prefix_sum;
+  for (ByteSpan span : *spans) {
+    prefix_sum.push_back({span.first, 1});
+    prefix_sum.push_back({span.second, -1});
+  }
+  for (ByteSpan span : *spans_exempted) {
+    prefix_sum.push_back({span.first, -1});
+    prefix_sum.push_back({span.second, 1});
+  }
+  std::sort(prefix_sum.begin(), prefix_sum.end());
+  int sum = 0;
+  int n = prefix_sum.size();
+  for (int i = 0; i < n - 1; ++i) {
+    sum += prefix_sum[i].second;
+    if (sum > 0 && prefix_sum[i].first < prefix_sum[i + 1].first) {
+      res.push_back({prefix_sum[i].first, prefix_sum[i + 1].first});
+    }
+  }
+  return res;
+}
+
 size_t GetTextWidth(const std::string& text, const ByteSpan& span) {
   // FIXME: this only works for ASCII characters.
   // To do this "correctly", we need to parse UTF-8 into codepoints
@@ -100,15 +127,9 @@ void PrintChunk(const std::pair<size_t, size_t>& lines_range,
     bool printed_underline = false;
     size_t line_pos = line_start;
     bool printed_extra_caret = 0;
-    int indent = 0;
-    while (text[line_pos] == ' ' && line_pos < line_end) {
-      ++indent;
-      ++line_pos;
-      current_underline.first = std::max(current_underline.first, line_pos);
-    }
     while (current_underline.first < line_end) {
       if (!printed_underline) {
-        *out += std::string(line_number_width + indent, ' ');
+        *out += std::string(line_number_width, ' ');
         printed_underline = true;
       }
 
@@ -240,7 +261,7 @@ std::string DecorateText(const std::string& text, const std::vector<size_t>& lin
   return ret;
 }
 
-}  // anonymous namespace
+}  // namespace
 
 DocPrinter::DocPrinter(const PrinterConfig& options) : options_(options) {
   line_starts_.push_back(0);
@@ -274,7 +295,10 @@ String DocPrinter::GetString() const {
 
   std::vector<ByteSpan> underlines = underlines_;
   SortAndMergeSpans(&underlines);
-  return DecorateText(text, line_starts_, options_, underlines);
+  std::vector<ByteSpan> underlines_exempted = underlines_exempted_;
+  SortAndMergeSpans(&underlines_exempted);
+  std::vector<ByteSpan> final_underlines = FilterSpans(&underlines, &underlines_exempted);
+  return DecorateText(text, line_starts_, options_, final_underlines);
 }
 
 void DocPrinter::PrintDoc(const Doc& doc) {

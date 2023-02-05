@@ -232,9 +232,12 @@ class DocPrinter {
    * \sa output_
    */
   std::ostream& NewLine() {
+    size_t start_pos = output_.tellp();
     output_ << "\n";
     line_starts_.push_back(output_.tellp());
     output_ << std::string(indent_, ' ');
+    size_t end_pos = output_.tellp();
+    underlines_exempted_.push_back({start_pos, end_pos});
     return output_;
   }
 
@@ -247,6 +250,9 @@ class DocPrinter {
    * \sa GetString
    */
   std::ostringstream output_;
+
+  /*! \brief Spans that we have already committed to underline exemption. */
+  std::vector<ByteSpan> underlines_exempted_;
 
  private:
   void MarkSpan(const ByteSpan& span, const ObjectPath& path);

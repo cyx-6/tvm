@@ -173,7 +173,12 @@ class PythonDocPrinter : public DocPrinter {
   void PrintTypedDoc(const DocStringDoc& doc) final;
 
  private:
-  void NewLineWithoutIndent() { output_ << "\n"; }
+  void NewLineWithoutIndent() {
+    size_t start_pos = output_.tellp();
+    output_ << "\n";
+    size_t end_pos = output_.tellp();
+    underlines_exempted_.push_back({start_pos, end_pos});
+  }
 
   template <typename DocType>
   void PrintJoinedDocs(const Array<DocType>& docs, const std::string& separator) {
@@ -251,7 +256,10 @@ class PythonDocPrinter : public DocPrinter {
       bool has_newline = std::find(comment.begin(), comment.end(), '\n') != comment.end();
       CHECK(!has_newline) << "ValueError: the comment string of " << stmt->GetTypeKey()
                           << " cannot have newline.";
+      size_t start_pos = output_.tellp();
       output_ << "  # " << comment;
+      size_t end_pos = output_.tellp();
+      underlines_exempted_.push_back({start_pos, end_pos});
     }
   }
 
@@ -259,6 +267,7 @@ class PythonDocPrinter : public DocPrinter {
     if (stmt->comment.defined()) {
       std::vector<std::string> comment_lines = support::Split(stmt->comment.value(), '\n');
       bool first_line = true;
+      size_t start_pos = output_.tellp();
       for (const std::string& line : comment_lines) {
         if (first_line) {
           output_ << "# " << line;
@@ -267,6 +276,8 @@ class PythonDocPrinter : public DocPrinter {
           NewLine() << "# " << line;
         }
       }
+      size_t end_pos = output_.tellp();
+      underlines_exempted_.push_back({start_pos, end_pos});
       if (new_line) {
         NewLine();
       }
@@ -275,7 +286,8 @@ class PythonDocPrinter : public DocPrinter {
 
   void PrintBlockComment(const String& comment) {
     IncreaseIndent();
-    NewLine() << "\"\"\"";
+    size_t start_pos = output_.tellp();
+    output_ << "\"\"\"";
 
     std::vector<std::string> comment_lines = support::Split(comment, '\n');
     for (const std::string& line : comment_lines) {
@@ -288,6 +300,8 @@ class PythonDocPrinter : public DocPrinter {
     }
 
     NewLine() << "\"\"\"";
+    size_t end_pos = output_.tellp();
+    underlines_exempted_.push_back({start_pos, end_pos});
     DecreaseIndent();
   }
 };
@@ -634,6 +648,7 @@ void PythonDocPrinter::PrintTypedDoc(const FunctionDoc& doc) {
   output_ << ":";
 
   if (doc->comment.defined()) {
+    NewLine();
     PrintBlockComment(doc->comment.value());
   }
   PrintIndentedBlock(doc->body);
@@ -648,6 +663,7 @@ void PythonDocPrinter::PrintTypedDoc(const ClassDoc& doc) {
   output_ << ":";
 
   if (doc->comment.defined()) {
+    NewLine();
     PrintBlockComment(doc->comment.value());
   }
   PrintIndentedBlock(doc->body);
@@ -662,7 +678,7 @@ void PythonDocPrinter::PrintTypedDoc(const CommentDoc& doc) {
 
 void PythonDocPrinter::PrintTypedDoc(const DocStringDoc& doc) {
   if (doc->comment.defined() && !doc->comment.value().empty()) {
-    output_ << "\"\"\"" << doc->comment.value() << "\"\"\"";
+    PrintBlockComment(doc->comment.value());
   }
 }
 

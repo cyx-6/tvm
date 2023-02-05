@@ -460,7 +460,6 @@ def test_reorder_fail_block():
         sch.reorder(l, i)
     expected_sub_error_message = (
         "                            # tir.Block#0\n"
-        "                            ^^^^^^^^^^^^^\n"
         '                            with T.block("B"):\n'
         "                            ^^^^^^^^^^^^^^^^^^\n"
     )
@@ -476,7 +475,6 @@ def test_reorder_fail_nested_loop_inner():
     expected_sub_error_message = (
         "            for i in range(128):\n"
         "                # tir.For#0\n"
-        "                ^^^^^^^^^^^\n"
         "                for j in range(128):\n"
         "                ^^^^^^^^^^^^^^^^^^^^\n"
     )
@@ -491,7 +489,6 @@ def test_fuse_fail_nested_loop_outer():
         sch.fuse(k, i)
     expected_sub_error_message = (
         "            # tir.For#1\n"
-        "            ^^^^^^^^^^^\n"
         "            for i in range(128):\n"
         "            ^^^^^^^^^^^^^^^^^^^^\n"
         "                for j in range(128):\n"
@@ -506,7 +503,6 @@ def test_report_error_root_block():
         sch.compute_inline(root)
     expected_sub_error_message = (
         "        # tir.Block#0\n"
-        "        ^^^^^^^^^^^^^\n"
         '        with T.block("root"):\n'
         "        ^^^^^^^^^^^^^^^^^^^^^\n"
     )

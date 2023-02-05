@@ -68,7 +68,6 @@ PrinterConfig::PrinterConfig(Map<String, ObjectRef> config_dict) {
     n->num_context_lines = Downcast<IntImm>(v)->value;
   }
   if (auto v = config_dict.Get("path_to_underline")) {
-    LOG_INFO << v;
     n->path_to_underline = Downcast<Optional<Array<ObjectPath>>>(v).value_or(Array<ObjectPath>());
   }
   if (auto v = config_dict.Get("path_to_annotate")) {
