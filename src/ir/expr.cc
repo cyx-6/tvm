@@ -32,7 +32,9 @@
 
 namespace tvm {
 
-PrimExpr::PrimExpr(int32_t value) : PrimExpr(IntImm(DataType::Int(32), value)) {}
+PrimExpr::Int32(int32_t value) { return IntImm(DataType::Int(32), value); }
+
+PrimExpr::Int64(int64_t value) { return IntImm(DataType::Int(64), value); }
 
 PrimExpr::PrimExpr(float value) : PrimExpr(FloatImm(DataType::Float(32), value)) {}
 

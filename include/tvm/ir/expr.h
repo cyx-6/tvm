@@ -114,15 +114,20 @@ class PrimExprNode : public BaseExprNode {
 class PrimExpr : public BaseExpr {
  public:
   /*!
-   * \brief construct from integer.
+   * \brief construct from 32-bit integer.
    * \param value The value to be constructed.
    */
-  TVM_DLL PrimExpr(int32_t value);  // NOLINT(*)
+  static PrimExpr Int32(int32_t value);  // NOLINT(*)
+  /*!
+   * \brief construct from 64-bit integer.
+   * \param value The value to be constructed.
+   */
+  static PrimExpr Int64(int64_t value);  // NOLINT(*)
   /*!
    * \brief construct from float.
    * \param value The value to be constructed.
    */
-  TVM_DLL PrimExpr(float value);  // NOLINT(*)
+  explicit TVM_DLL PrimExpr(float value);  // NOLINT(*)
 
   /*! \return the data type of this expression. */
   DataType dtype() const { return static_cast<const PrimExprNode*>(get())->dtype; }

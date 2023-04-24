@@ -207,6 +207,13 @@ class Tensor : public DataProducer {
    */
   inline Slice operator[](PrimExpr i) const { return Slice(*this, {i}); }
 
+  /*!
+   * \brief get i-th slice from the current Tensor.
+   * \param i the index of the coordinate
+   * \return the subsequent slice.
+   */
+  inline Slice operator[](int64_t i) const { return Slice(*this, {PrimExpr::Int64(i)}); }
+
   TVM_DEFINE_OBJECT_REF_METHODS(Tensor, DataProducer, TensorNode);
 };
 
