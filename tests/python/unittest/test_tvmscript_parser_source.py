@@ -20,7 +20,7 @@ import inspect
 import tvm.testing
 from tvm.script.parser.core.diagnostics import Source
 from tvm.script.parser.core import doc_core as doc
-from tvm.script import tir as T
+from tvm.script import tir as T, ir as I
 
 
 def matmul(a: T.handle, b: T.handle, c: T.handle) -> None:
@@ -88,13 +88,28 @@ def test_nesting_parsing():
 
     for i in range(1):
 
-        @tvm.script.ir_module
+        @I.ir_module
         class Module:
             @T.prim_func
             def impl(
                 A: T.Buffer((12, 196, 64), "float32"),
             ) -> None:
                 T.evaluate(0)
+
+
+def test_nesting_parsing_multi_line_args():
+    def multi_line_args_func(
+        a,
+        b,
+        c,
+    ) -> I.ir_module:
+        @I.ir_module
+        class Module:
+            @T.prim_func
+            def func():
+                T.evaluate(0)
+
+        return Module
 
 
 if __name__ == "__main__":

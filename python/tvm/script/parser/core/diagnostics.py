@@ -146,6 +146,7 @@ def findsource(obj):
     in_comment = 0
     scope_stack = []
     indent_info = {}
+    left_brackets = 0
     for i, line in enumerate(lines):
         n_comment = line.count('"""')
         if n_comment:
@@ -161,11 +162,18 @@ def findsource(obj):
             name = None
             if tokens[0] == "def":
                 name = tokens[1].split(":")[0].split("(")[0] + "<locals>"
+                left_brackets = line.count("(") - line.count(")")
             elif tokens[0] == "class":
                 name = tokens[1].split(":")[0].split("(")[0]
-            # pop scope if we are less indented
-            while scope_stack and indent_info[scope_stack[-1]] >= indent:
-                scope_stack.pop()
+                left_brackets = line.count("(") - line.count(")")
+            else:
+                if left_brackets > 0:
+                    left_brackets += line.count("(") - line.count(")")
+            # pop scope if we are less indented and skip the indents
+            # in the multi-lines function arguments
+            if left_brackets == 0:
+                while scope_stack and indent_info[scope_stack[-1]] >= indent:
+                    scope_stack.pop()
             if name:
                 scope_stack.append(name)
                 indent_info[name] = indent
