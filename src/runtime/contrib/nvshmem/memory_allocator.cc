@@ -70,6 +70,7 @@ class NVSHMEMAllocator final : public PooledAllocator {
     *buffer = PooledAllocator::Alloc(device, shape, dtype, String("nvshmem"));
     container->manager_ctx = reinterpret_cast<void*>(buffer);
     container->dl_tensor.data = buffer->data;
+    container->dl_tensor.device.device_id = nvshmem_team_my_pe(NVSHMEMX_TEAM_NODE);
     return NDArray(GetObjectPtr<Object>(container));
   }
 
